@@ -1,0 +1,155 @@
+#include <Arduino.h>
+//#include <Wire.h>
+//#include <SPI.h>
+
+#include <FreeRTOS.h>
+#include <Task.h>
+
+// default "Serial1" object: UART0, TX = GP0, RX = GP1
+// our new Serial object:
+// #define SERIAL1_TX      12  // Use GP4 as UART1 TX
+// #define SERIAL1_RX      13  // Use GP5 as UART1 RX
+// arduino::UART Serial1(SERIAL1_TX, SERIAL1_RX, NC, NC);
+
+#define UART_ID_0 uart0
+#define UART_ID_1 uart1
+
+/* Get the time in MS. */
+//TickType_t currentTime = pdTICKS_TO_MS(xTaskGetTickCount());
+
+// avoid stack overwrite by core0
+bool core1_separate_stack = true;
+
+bool LED = true;
+
+void LED_blink()
+{
+    digitalWrite(LED_BUILTIN, LED);
+    LED = !LED;
+}
+
+// Serial: USB CDC
+// Serial 1: From UICC
+// Serial 2: From Host
+
+void UICC_to_HOST(void *parameter)
+{
+  while (1)
+  {
+    // echo from 1 to 2
+    if (Serial1.available() > 0)
+    {
+      Serial2.write(Serial.read());
+    }
+  }
+}
+
+void HOST_to_UICC(void *parameter)
+{
+  while (1)
+  {
+    // echo from 2 to 1
+    if (Serial2.available() > 0)
+    {
+      Serial1.write(Serial2.read());
+    }
+  }
+}
+
+void UICC_to_PICO(void *parameter)
+{
+  while (1)
+  {
+    // print the data in serial 1
+    if (Serial1.available() > 0)
+    {
+      //long currentTime = xTaskGetTickCount();
+      //Serial.printf("[%u]", currentTime);
+      Serial.print("[Host <-- UICC]: ");
+      Serial.println(Serial1.read());
+
+      LED_blink();
+    }
+  }
+}
+
+void HOST_to_PICO(void *parameter)
+{
+  while (1)
+  {
+    // print the data in serial 2
+    if (Serial2.available() > 0)
+    {
+      //long currentTime = xTaskGetTickCount();
+      //Serial.printf("[%u]", currentTime);
+      Serial.print("[Host --> UICC]: ");
+      Serial.println(Serial2.read());
+
+      LED_blink();
+    }
+  }
+}
+
+void setup()
+{
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  uart_set_fifo_enabled(UART_ID_0, true);
+  uart_set_fifo_enabled(UART_ID_1, true);
+
+  irq_set_enabled(UART0_IRQ, true);
+  irq_set_enabled(UART1_IRQ, true);
+
+  //Serial1.setFIFOSize(128);
+  Serial1.setRX(1);
+  Serial1.setTX(0);
+
+  //Serial2.setFIFOSize(128);
+  Serial2.setRX(5);
+  Serial2.setTX(4);
+
+  Serial1.begin(115200);
+  Serial2.begin(115200);
+
+  Serial.begin(115200);
+
+  delay(2000);
+
+  Serial1.println("Serial1: UICC OK!");
+  Serial2.println("Serial2: Host OK!");
+
+  Serial.println("Serial: PICO OK!");
+
+  xTaskCreate(UICC_to_HOST, "UICC_to_HOST", 128, NULL, 1, NULL);
+  xTaskCreate(HOST_to_UICC, "HOST_to_UICC", 128, NULL, 1, NULL);
+
+  xTaskCreate(UICC_to_PICO, "UICC_to_PICO", 128, NULL, 1, NULL);
+  xTaskCreate(HOST_to_PICO, "HOST_to_PICO", 128, NULL, 1, NULL);
+
+  vTaskStartScheduler();
+}
+
+void setup1()
+{
+  
+/*
+  xTaskCreate(
+      LED_blink,   // Function name of the task
+      "LED_blink", // Name of the task (e.g. for debugging)
+      128,         // Stack size (bytes)
+      NULL,        // Parameter to pass
+      1,           // Task priority
+      NULL         // Task handle
+  );
+*/
+
+  //vTaskStartScheduler();
+}
+
+void loop()
+{
+}
+
+void loop1()
+{
+}

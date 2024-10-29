@@ -1,0 +1,10 @@
+{
+    "idf.customExtraVars": {
+        "OPENOCD_SCRIPTS": "C:\\Users\\OtakuNekoP\\.espressif\\tools\\openocd-esp32\\v0.11.0-esp32-20211220/openocd-esp32/share/openocd/scripts",
+        "IDF_CCACHE_ENABLE": "1"
+    },
+    "idf.flashType": "UART",
+    "files.associations": {
+        "ostream": "cpp"
+    }
+}
